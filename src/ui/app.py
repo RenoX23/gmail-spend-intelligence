@@ -37,6 +37,7 @@ from src.ui.components import (
     render_anomaly_card,
     render_empty_state,
     render_kpi_card,
+    render_oauth_connect_card,
     render_traceability_view,
 )
 
@@ -130,6 +131,8 @@ with st.sidebar:
     client_secrets_path = "credentials.json"
     gmail_query = "has:attachment OR invoice OR receipt OR payment OR bill OR statement"
     max_emails = 50
+    user_email = None
+    oauth_handler = None
 
     if "Live Gmail" in mode:
         st.markdown("#### **Google OAuth 2.0 Settings**")
@@ -179,7 +182,7 @@ with st.sidebar:
                            ```toml
                            GMAIL_TOKEN_JSON = '''<paste contents of your local token.json here>'''
                            ```
-                        
+
                         *Tip: You can also switch back to **Mode B** to evaluate the complete pipeline instantly with 18+ synthetic edge cases.*
                         """
                     )
@@ -278,7 +281,22 @@ active_trace_id = st.session_state.get("active_trace_msg_id")
 if active_trace_id and active_trace_id in st.session_state["emails_by_id"]:
     render_traceability_view(st.session_state["emails_by_id"][active_trace_id])
 
-if result is None or len(result.transactions) == 0:
+if "Live Gmail" in mode and not user_email:
+    render_oauth_connect_card()
+    col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+    with col_c2:
+        if oauth_handler and oauth_handler.is_configured():
+            if st.button("🔑 Connect Google Account with OAuth", key="btn_main_connect", type="primary", use_container_width=True):
+                with st.spinner("Authorizing with Google OAuth... (check browser window)"):
+                    try:
+                        creds = oauth_handler.get_credentials(allow_browser_flow=True)
+                        if creds:
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"OAuth error: {e}")
+        else:
+            st.info("💡 To authenticate on Streamlit Cloud, upload your `token.json` in the sidebar or configure Secrets.")
+elif result is None or len(result.transactions) == 0:
     render_empty_state()
 else:
     # Deterministic Analytics

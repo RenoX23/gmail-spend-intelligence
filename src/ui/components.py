@@ -29,6 +29,35 @@ def render_kpi_card(title: str, value: str, subtitle: str = "", badge: Optional[
     )
 
 
+def render_oauth_connect_card() -> None:
+    """Render a prominent hero card asking the user to connect their Gmail account."""
+    st.markdown(
+        """
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 16px; padding: 40px 32px; text-align: center; margin: 24px 0; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);">
+            <div style="font-size: 46px; margin-bottom: 12px;">🔒</div>
+            <h2 style="color: #f8fafc; font-size: 24px; font-weight: 700; margin-bottom: 8px;">
+                Connect Your Gmail Account
+            </h2>
+            <p style="color: #94a3b8; font-size: 15px; max-width: 580px; margin: 0 auto 24px auto; line-height: 1.6;">
+                The application connects to your Gmail account with your permission using <b>Google OAuth 2.0</b> to analyze past emails, invoices, payment receipts, and recurring subscriptions.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;">
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px 16px; text-align: left; font-size: 12.5px; color: #cbd5e1;">
+                    🛡️ <b>Strictly Read-Only:</b> <code>gmail.readonly</code> scope only
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px 16px; text-align: left; font-size: 12.5px; color: #cbd5e1;">
+                    ⚡ <b>In-Memory Ephemeral:</b> Zero data stored on disk
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px 16px; text-align: left; font-size: 12.5px; color: #cbd5e1;">
+                    📊 <b>Deterministic Math:</b> Audited financial facts
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_empty_state(custom_message: Optional[str] = None) -> None:
     """Explicit, polished empty state when zero financial transactions are detected."""
     msg = custom_message or "No financial transactions were detected in the selected mailbox query."
