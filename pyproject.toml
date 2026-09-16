@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polarisk-gmail-spend-intelligence"
+version = "0.1.0"
+description = "Enterprise-grade financial intelligence pipeline extracting, validating, and analyzing transaction telemetry from Gmail."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.5.0",
+    "pandas>=2.0.0",
+    "streamlit>=1.30.0",
+    "plotly>=5.17.0",
+    "google-genai>=0.1.0",
+    "google-api-python-client>=2.100.0",
+    "google-auth>=2.20.0",
+    "google-auth-oauthlib>=1.1.0",
+    "python-dateutil>=2.8.2",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

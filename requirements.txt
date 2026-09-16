@@ -1,0 +1,27 @@
+# Polarisk Gmail Spend Intelligence - Dependencies
+
+# Core Data Validation & Parsing
+pydantic>=2.5.0
+python-dateutil>=2.8.2
+python-dotenv>=1.0.0
+
+# Ingestion & Google OAuth
+google-api-python-client>=2.100.0
+google-auth>=2.20.0
+google-auth-oauthlib>=1.1.0
+google-auth-httplib2>=0.2.0
+
+# Deterministic Analytics & Visualizations
+pandas>=2.0.0
+plotly>=5.17.0
+
+# AI Extraction Fallback & Anomaly Explanation
+google-genai>=0.1.0
+
+# User Interface
+streamlit>=1.30.0
+
+# Testing & Code Quality
+pytest>=7.4.0
+pytest-cov>=4.1.0
+ruff>=0.2.0
