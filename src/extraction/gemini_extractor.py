@@ -47,25 +47,37 @@ Respond ONLY with a valid JSON object matching this schema:
 
 
 class GeminiExtractor:
-    """Gemini Flash structured extraction fallback for non-standard or unstructured emails."""
+    """Structured extraction fallback supporting both Gemini 1.5 Flash and Groq (Llama-3.3)."""
 
     def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-1.5-flash") -> None:
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self.api_key = (api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY") or "").strip()
         self.model_name = os.getenv("GEMINI_MODEL", model_name)
         self._client = None
+        self.provider = "gemini"
+
         if self.api_key:
-            try:
-                from google import genai
-                self._client = genai.Client(api_key=self.api_key)
-            except Exception:
-                self._client = None
+            if self.api_key.startswith("gsk_"):
+                self.provider = "groq"
+                try:
+                    from groq import Groq
+                    self._client = Groq(api_key=self.api_key)
+                    self.model_name = "llama-3.3-70b-versatile"
+                except Exception:
+                    self._client = None
+            else:
+                self.provider = "gemini"
+                try:
+                    from google import genai
+                    self._client = genai.Client(api_key=self.api_key)
+                except Exception:
+                    self._client = None
 
     def is_available(self) -> bool:
-        """Check if Gemini API is configured and accessible."""
+        """Check if LLM API is configured and accessible."""
         return self._client is not None
 
     def extract(self, email: EmailMessage) -> Optional[TransactionCandidate]:
-        """Call Gemini to extract structured transaction details."""
+        """Call Gemini or Groq to extract structured transaction details."""
         if not self.is_available():
             return None
 
@@ -79,21 +91,36 @@ Body:
 """
 
         try:
-            from google.genai import types
+            raw_text = None
+            if self.provider == "groq":
+                chat_completion = self._client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[
+                        {"role": "system", "content": EXTRACTION_PROMPT},
+                        {"role": "user", "content": email_content},
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.0,
+                )
+                raw_text = chat_completion.choices[0].message.content
+            else:
+                from google.genai import types
 
-            response = self._client.models.generate_content(
-                model=self.model_name,
-                contents=[EXTRACTION_PROMPT, email_content],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.0,  # Zero temperature for deterministic financial extraction
-                ),
-            )
+                response = self._client.models.generate_content(
+                    model=self.model_name,
+                    contents=[EXTRACTION_PROMPT, email_content],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.0,  # Zero temperature for deterministic financial extraction
+                    ),
+                )
+                if response and response.text:
+                    raw_text = response.text
 
-            if not response or not response.text:
+            if not raw_text:
                 return None
 
-            data = json.loads(response.text)
+            data = json.loads(raw_text)
             amount = data.get("amount")
             if amount is None or amount <= 0:
                 # Anti-hallucination guard: No valid amount extracted

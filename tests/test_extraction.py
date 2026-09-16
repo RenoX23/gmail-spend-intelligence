@@ -189,3 +189,31 @@ class TestGeminiExtractor:
             body_text="Your mandate is registered.",
         )
         assert extractor.extract(email) is None
+
+    def test_groq_mocked_success(self):
+        from src.extraction.gemini_extractor import GeminiExtractor
+        extractor = GeminiExtractor(api_key="gsk_fake_key_12345")
+        assert extractor.provider == "groq"
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = '{"merchant": "Groq Cloud", "amount": 25.00, "currency": "USD", "date": "2026-09-10", "category": "Utilities", "transaction_type": "bill", "confidence": 0.95, "is_recurring": true, "reasoning": "Compute bill"}'
+        mock_completion = MagicMock()
+        mock_completion.choices = [mock_choice]
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_completion
+        extractor._client = mock_client
+
+        email = EmailMessage(
+            message_id="msg_groq",
+            subject="Your Groq Cloud Statement",
+            sender="billing@groq.com",
+            date_str="2026-09-10",
+            body_text="Your balance of $25.00 was charged.",
+        )
+        candidate = extractor.extract(email)
+        assert candidate is not None
+        assert candidate.merchant == "Groq Cloud"
+        assert candidate.amount == 25.00
+        assert candidate.currency == "USD"
+

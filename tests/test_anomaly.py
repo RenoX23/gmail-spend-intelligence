@@ -99,3 +99,30 @@ class TestAnomalyExplainer:
         )
         exp = explainer.explain(alert)
         assert "Adobe subscription jumped 25.5%" in exp
+
+    def test_groq_mocked_explanation(self):
+        from src.anomaly.explainer import AnomalyExplainer
+        explainer = AnomalyExplainer(api_key="gsk_fake_key_999")
+        assert explainer.provider == "groq"
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Groq analysis: Adobe subscription cost increased significantly over historical baseline."
+        mock_completion = MagicMock()
+        mock_completion.choices = [mock_choice]
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_completion
+        explainer._client = mock_client
+
+        alert = AnomalyAlert(
+            alert_id="a1",
+            alert_type="price_increase",
+            severity="high",
+            merchant="Adobe",
+            amount=6899.00,
+            explanation="Base explanation",
+            source_message_id="msg_adobe",
+        )
+        exp = explainer.explain(alert)
+        assert "Groq analysis" in exp
+

@@ -17,6 +17,7 @@ plotly>=5.17.0
 
 # AI Extraction Fallback & Anomaly Explanation
 google-genai>=0.1.0
+groq>=0.30.0
 
 # User Interface
 streamlit>=1.30.0

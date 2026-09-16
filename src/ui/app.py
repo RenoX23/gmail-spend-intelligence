@@ -105,10 +105,10 @@ with st.sidebar:
     )
 
     gemini_key = st.text_input(
-        "Google Gemini API Key (Optional):",
-        value=os.getenv("GEMINI_API_KEY", ""),
+        "LLM API Key (Gemini or Groq - Optional):",
+        value=os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY") or "",
         type="password",
-        help="Enables Gemini 1.5 Flash structured extraction fallback & natural language anomaly explanations.",
+        help="Supports Google Gemini (AIza...) or Groq (gsk_...). Enables structured fallback extraction & natural language anomaly explanations.",
     )
 
     st.markdown("---")
