@@ -83,10 +83,21 @@ class GmailOAuthHandler:
 
     def get_gmail_service(self) -> Optional[Resource]:
         """Build and return an authorized Gmail API v1 service."""
-        creds = self._credentials or self.get_credentials()
+        creds = self._credentials or self.get_credentials(allow_browser_flow=False)
         if not creds or not creds.valid:
             return None
         return build("gmail", "v1", credentials=creds, cache_discovery=False)
+
+    def get_user_email(self) -> Optional[str]:
+        """Fetch email address of the authenticated user."""
+        service = self.get_gmail_service()
+        if not service:
+            return None
+        try:
+            profile = service.users().getProfile(userId="me").execute()
+            return profile.get("emailAddress")
+        except Exception:
+            return None
 
     def revoke_credentials(self) -> bool:
         """Clear cached tokens for session termination."""

@@ -114,22 +114,44 @@ with st.sidebar:
     st.markdown("---")
 
     gmail_service = None
+    client_secrets_path = "credentials.json"
+    gmail_query = "has:attachment OR invoice OR receipt OR payment OR bill OR statement"
+    max_emails = 50
+
     if "Live Gmail" in mode:
         st.markdown("#### **Google OAuth 2.0 Settings**")
         client_secrets_path = st.text_input("Client Secrets Path:", value="credentials.json")
         oauth_handler = GmailOAuthHandler(client_secrets_file=client_secrets_path)
 
         if not oauth_handler.is_configured():
-            st.warning("⚠️ `credentials.json` not detected. Provide OAuth client secrets or switch to Demo Mode.")
+            st.warning("⚠️ `credentials.json` not detected in project root.")
+            with st.expander("ℹ️ How to get credentials.json (5 mins)", expanded=False):
+                st.markdown(
+                    """
+                    1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+                    2. Create project & enable **Gmail API**
+                    3. Configure **OAuth Consent Screen** (User Type: External, add your email as Test User)
+                    4. Create Credentials -> **OAuth Client ID** -> Type: **Desktop App**
+                    5. Download JSON, rename to `credentials.json`, and place in project root.
+                    """
+                )
         else:
-            if st.button("🔑 Authenticate with Google", use_container_width=True):
-                with st.spinner("Authorizing with Google OAuth..."):
-                    try:
-                        creds = oauth_handler.get_credentials(allow_browser_flow=True)
-                        if creds:
-                            st.success("Authenticated with Google (gmail.readonly)")
-                    except Exception as e:
-                        st.error(f"OAuth error: {e}")
+            user_email = oauth_handler.get_user_email()
+            if user_email:
+                st.success(f"✅ Connected: **{user_email}**")
+                if st.button("🔄 Disconnect / Revoke", use_container_width=True):
+                    oauth_handler.revoke_credentials()
+                    st.session_state["pipeline_result"] = None
+                    st.rerun()
+            else:
+                if st.button("🔑 Connect Google Account", use_container_width=True):
+                    with st.spinner("Authorizing with Google OAuth... (check browser window)"):
+                        try:
+                            creds = oauth_handler.get_credentials(allow_browser_flow=True)
+                            if creds:
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"OAuth error: {e}")
 
         gmail_query = st.text_input(
             "Search Query Filter:",
@@ -156,29 +178,30 @@ with st.sidebar:
 
 
 # Automatic first-run on Demo Dataset if not run yet
-should_run = run_pipeline or (st.session_state["pipeline_result"] is None)
+should_run = run_pipeline or (st.session_state["pipeline_result"] is None and "Live Gmail" not in mode)
 
 if should_run:
     with st.spinner("Ingesting and processing financial telemetry..."):
         try:
+            loader = None
             if "Live Gmail" in mode:
-                oauth_handler = GmailOAuthHandler()
+                oauth_handler = GmailOAuthHandler(client_secrets_file=client_secrets_path)
                 service = oauth_handler.get_gmail_service()
                 if not service:
-                    st.error("Cannot connect to Live Gmail: Authentication required. Switch to Demo Mode for instant evaluation.")
-                    loader = DemoDatasetLoader()
+                    st.warning("⚠️ Please click '🔑 Connect Google Account' in the sidebar to authenticate before running.")
                 else:
                     loader = LiveGmailLoader(service=service, query=gmail_query, max_results=max_emails)
             else:
                 loader = DemoDatasetLoader()
 
-            raw_emails = loader.load_emails()
-            st.session_state["emails_by_id"] = {e.message_id: e for e in raw_emails}
+            if loader is not None:
+                raw_emails = loader.load_emails()
+                st.session_state["emails_by_id"] = {e.message_id: e for e in raw_emails}
 
-            # Run Hybrid Extraction Engine
-            engine = HybridExtractionEngine(gemini_api_key=gemini_key or None)
-            pipeline_result = engine.process_emails(raw_emails)
-            st.session_state["pipeline_result"] = pipeline_result
+                # Run Hybrid Extraction Engine
+                engine = HybridExtractionEngine(gemini_api_key=gemini_key or None)
+                pipeline_result = engine.process_emails(raw_emails)
+                st.session_state["pipeline_result"] = pipeline_result
         except Exception as err:
             st.error(f"Pipeline error: {err}")
 
