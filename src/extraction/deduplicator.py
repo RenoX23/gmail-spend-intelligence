@@ -25,12 +25,12 @@ class TransactionDeduplicator:
 
     # Patterns to extract explicit order/invoice reference numbers
     ORDER_ID_PATTERNS = [
-        re.compile(r"order\s*#?\s*([0-9]{3}-[0-9]{7}-[0-9]{7})", re.IGNORECASE),  # Amazon format
-        re.compile(r"order\s*(?:id|#)?[\s:]*([a-zA-Z0-9_-]{5,25})", re.IGNORECASE),
-        re.compile(r"invoice\s*(?:id|#)?[\s:]*([a-zA-Z0-9_-]{4,25})", re.IGNORECASE),
-        re.compile(r"receipt\s*#[\s:]*([a-zA-Z0-9_-]{4,25})", re.IGNORECASE),
-        re.compile(r"ref\s*(?:id|#)?[\s:]*([a-zA-Z0-9_-]{4,25})", re.IGNORECASE),
+        re.compile(r"order\s*#?\s*([0-9]{3}-[0-9]{7}-[0-9]{7})", re.IGNORECASE),  # Amazon format: 402-1829103-9182301
+        re.compile(r"(?:order|invoice|receipt|ref)\s*(?:id|#|no\.?)\s*[:#-]?\s*([a-zA-Z0-9_-]{4,30})", re.IGNORECASE),
+        re.compile(r"\b(INV-[0-9]{4,12}|SW-[0-9]{5,12}|OD[0-9]{10,25})\b", re.IGNORECASE),
     ]
+
+    DISALLOWED_TOKENS = {"from", "with", "date", "copy", "your", "notice", "receipt", "invoice", "order", "update"}
 
     @classmethod
     def extract_order_reference(cls, text: str) -> Optional[str]:
@@ -38,7 +38,12 @@ class TransactionDeduplicator:
         for pattern in cls.ORDER_ID_PATTERNS:
             match = pattern.search(text)
             if match:
-                return match.group(1).strip()
+                token = match.group(1).strip()
+                if token.lower() in cls.DISALLOWED_TOKENS:
+                    continue
+                # Valid IDs must contain digits or hyphen
+                if any(c.isdigit() for c in token) or "-" in token:
+                    return token
         return None
 
     @classmethod

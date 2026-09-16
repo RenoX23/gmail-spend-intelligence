@@ -251,10 +251,16 @@ class RegexVendorExtractor:
         # 9. Adobe
         if "adobe" in sender or "adobe" in combined.lower():
             m_amount = re.search(
-                r"(?:total\s+amount\s+charged|total)[\s:]*(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{2})?)",
+                r"total\s+amount\s+charged[\s:]*(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{2})?)",
                 combined,
                 re.IGNORECASE,
             )
+            if not m_amount:
+                m_amount = re.search(
+                    r"\b(?<!sub)total[\s:]*(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{2})?)",
+                    combined,
+                    re.IGNORECASE,
+                )
             if m_amount:
                 amt = _parse_amount(m_amount.group(1))
                 if amt:
