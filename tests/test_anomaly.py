@@ -125,4 +125,3 @@ class TestAnomalyExplainer:
         )
         exp = explainer.explain(alert)
         assert "Groq analysis" in exp
-

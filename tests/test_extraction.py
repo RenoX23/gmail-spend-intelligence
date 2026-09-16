@@ -216,4 +216,3 @@ class TestGeminiExtractor:
         assert candidate.merchant == "Groq Cloud"
         assert candidate.amount == 25.00
         assert candidate.currency == "USD"
-

@@ -7,6 +7,7 @@ Core principle:
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -82,6 +83,10 @@ def initialize_session_state() -> None:
         st.session_state["active_trace_msg_id"] = None
     if "emails_by_id" not in st.session_state:
         st.session_state["emails_by_id"] = {}
+    if "current_mode" not in st.session_state:
+        st.session_state["current_mode"] = None
+    if "uploaded_token_dict" not in st.session_state:
+        st.session_state["uploaded_token_dict"] = None
 
 
 initialize_session_state()
@@ -104,6 +109,14 @@ with st.sidebar:
         help="Mode B allows instant evaluation of 18 edge cases (price hikes, noise, duplicates) with zero credentials.",
     )
 
+    if st.session_state["current_mode"] is not None and st.session_state["current_mode"] != mode:
+        st.session_state["current_mode"] = mode
+        st.session_state["pipeline_result"] = None
+        st.session_state["active_trace_msg_id"] = None
+        st.session_state["emails_by_id"] = {}
+    else:
+        st.session_state["current_mode"] = mode
+
     gemini_key = st.text_input(
         "LLM API Key (Gemini or Groq - Optional):",
         value=os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY") or "",
@@ -121,28 +134,55 @@ with st.sidebar:
     if "Live Gmail" in mode:
         st.markdown("#### **Google OAuth 2.0 Settings**")
         client_secrets_path = st.text_input("Client Secrets Path:", value="credentials.json")
-        oauth_handler = GmailOAuthHandler(client_secrets_file=client_secrets_path)
+        token_info = st.session_state.get("uploaded_token_dict")
+        oauth_handler = GmailOAuthHandler(
+            client_secrets_file=client_secrets_path,
+            token_info=token_info,
+        )
 
-        if not oauth_handler.is_configured():
-            st.warning("⚠️ `credentials.json` not detected in project root.")
-            with st.expander("ℹ️ How to get credentials.json (5 mins)", expanded=False):
-                st.markdown(
-                    """
-                    1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-                    2. Create project & enable **Gmail API**
-                    3. Configure **OAuth Consent Screen** (User Type: External, add your email as Test User)
-                    4. Create Credentials -> **OAuth Client ID** -> Type: **Desktop App**
-                    5. Download JSON, rename to `credentials.json`, and place in project root.
-                    """
-                )
+        user_email = oauth_handler.get_user_email()
+        if user_email:
+            st.success(f"✅ Connected: **{user_email}**")
+            if st.button("🔄 Disconnect / Revoke", use_container_width=True):
+                oauth_handler.revoke_credentials()
+                st.session_state["uploaded_token_dict"] = None
+                st.session_state["pipeline_result"] = None
+                st.rerun()
         else:
-            user_email = oauth_handler.get_user_email()
-            if user_email:
-                st.success(f"✅ Connected: **{user_email}**")
-                if st.button("🔄 Disconnect / Revoke", use_container_width=True):
-                    oauth_handler.revoke_credentials()
-                    st.session_state["pipeline_result"] = None
-                    st.rerun()
+            if not oauth_handler.is_configured():
+                st.warning("⚠️ `credentials.json` or `token.json` not found.")
+                st.caption("On Streamlit Cloud, private credentials are git-ignored for repository security.")
+
+                uploaded_token = st.file_uploader(
+                    "Upload `token.json` (Session Auth):",
+                    type=["json"],
+                    help="Upload your local token.json generated from `python authenticate.py`. Kept in temporary session memory.",
+                )
+                if uploaded_token:
+                    try:
+                        token_data = json.load(uploaded_token)
+                        if "token" in token_data or "refresh_token" in token_data:
+                            st.session_state["uploaded_token_dict"] = token_data
+                            st.success("✅ Token loaded! Connecting...")
+                            st.rerun()
+                        else:
+                            st.error("Invalid token.json format.")
+                    except Exception as e:
+                        st.error(f"Failed to parse token file: {e}")
+
+                with st.expander("ℹ️ How to run Mode A on Cloud", expanded=False):
+                    st.markdown(
+                        """
+                        **Two options for Streamlit Cloud:**
+                        1. **Session Upload (Instant):** Drag & drop your local `token.json` (created by `python authenticate.py` on your machine) into the uploader above.
+                        2. **Permanent Secret:** In your Streamlit Cloud dashboard under **Settings -> Secrets**, add:
+                           ```toml
+                           GMAIL_TOKEN_JSON = '''<paste contents of your local token.json here>'''
+                           ```
+                        
+                        *Tip: You can also switch back to **Mode B** to evaluate the complete pipeline instantly with 18+ synthetic edge cases.*
+                        """
+                    )
             else:
                 if st.button("🔑 Connect Google Account", use_container_width=True):
                     with st.spinner("Authorizing with Google OAuth... (check browser window)"):
@@ -185,10 +225,14 @@ if should_run:
         try:
             loader = None
             if "Live Gmail" in mode:
-                oauth_handler = GmailOAuthHandler(client_secrets_file=client_secrets_path)
+                token_info = st.session_state.get("uploaded_token_dict")
+                oauth_handler = GmailOAuthHandler(
+                    client_secrets_file=client_secrets_path,
+                    token_info=token_info,
+                )
                 service = oauth_handler.get_gmail_service()
                 if not service:
-                    st.warning("⚠️ Please click '🔑 Connect Google Account' in the sidebar to authenticate before running.")
+                    st.warning("⚠️ Please connect your Google Account or upload token.json in the sidebar before running.")
                 else:
                     loader = LiveGmailLoader(service=service, query=gmail_query, max_results=max_emails)
             else:
