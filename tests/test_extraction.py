@@ -189,4 +189,3 @@ class TestGeminiExtractor:
             body_text="Your mandate is registered.",
         )
         assert extractor.extract(email) is None
-

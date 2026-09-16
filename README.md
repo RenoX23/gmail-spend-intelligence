@@ -1,6 +1,6 @@
 # Polarisk Gmail Spend Intelligence
 
-> **Enterprise-Grade Financial Intelligence Pipeline Extracting, Validating, and Analyzing Transaction Telemetry from Gmail.**  
+> **Enterprise-Grade Financial Intelligence Pipeline Extracting, Validating, and Analyzing Transaction Telemetry from Gmail.**
 > *Core Architectural Axiom: AI interprets messy, unstructured data; deterministic systems establish immutable financial facts.*
 
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
@@ -176,7 +176,7 @@ Instead of delegating financial risk detection to an unpredictable LLM, Polarisk
 
 ### 1. Price Hike Detection
 $$\Delta\% = \frac{\text{Latest Amount} - \overline{\text{Baseline}}}{\overline{\text{Baseline}}} \times 100$$
-When $\Delta\% \ge 20.0\%$, an alert is triggered. If $\Delta\% \ge 25.0\%$, severity is escalated to `high`.  
+When $\Delta\% \ge 20.0\%$, an alert is triggered. If $\Delta\% \ge 25.0\%$, severity is escalated to `high`.
 *Ground Truth Verification: Adobe Creative Cloud (₹5,499 baseline $\rightarrow$ ₹6,899 charge = +25.46% hike).*
 
 ### 2. First-Time High-Spend Merchant
@@ -291,6 +291,6 @@ To deploy this application publicly on Streamlit Cloud:
 
 ## 13. Author & License
 
-* **Developer**: Renold Stephen ([GitHub: @RenoX23](https://github.com/RenoX23))  
-* **Company**: Beyond Technologies (Technical Assessment)  
+* **Developer**: Renold Stephen ([GitHub: @RenoX23](https://github.com/RenoX23))
+* **Company**: Beyond Technologies (Technical Assessment)
 * **License**: MIT License. Open source for educational and evaluation purposes.
