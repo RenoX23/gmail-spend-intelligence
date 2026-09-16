@@ -254,7 +254,7 @@
   {
     "scenario_id": "case_12_hdfc_missing_amount_rejection",
     "description": "Missing Amount Edge Case: Auto-debit registration email containing no numerical transaction figure.",
-    "is_financial": false,
+    "is_financial": true,
     "message_id": "msg_hdfc_no_amount_2026_0902",
     "thread_id": "th_hdfc_12",
     "sender": "alerts@hdfcbank.net",

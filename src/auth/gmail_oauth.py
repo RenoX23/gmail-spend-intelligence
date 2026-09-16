@@ -1,0 +1,99 @@
+"""Google OAuth 2.0 Handler with strictly read-only scope.
+
+Security & Privacy Constraints:
+    1. Scope is hardcoded to `https://www.googleapis.com/auth/gmail.readonly`.
+    2. Modifying operations (send, trash, modify labels) are strictly forbidden.
+    3. Tokens and credentials are held ephemerally in session memory or git-ignored files.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import Resource, build
+
+
+# NON-NEGOTIABLE: Strictly read-only access
+GMAIL_SCOPES: List[str] = ["https://www.googleapis.com/auth/gmail.readonly"]
+
+DEFAULT_CREDENTIALS_PATH = Path("credentials.json")
+DEFAULT_TOKEN_PATH = Path("token.json")
+
+
+class GmailOAuthHandler:
+    """Manages secure Google OAuth 2.0 lifecycle with minimal scopes."""
+
+    def __init__(
+        self,
+        client_secrets_file: Optional[str | Path] = None,
+        token_path: Optional[str | Path] = None,
+    ) -> None:
+        self.client_secrets_file = Path(client_secrets_file or os.getenv("GMAIL_CLIENT_SECRETS_FILE", DEFAULT_CREDENTIALS_PATH))
+        self.token_path = Path(token_path or DEFAULT_TOKEN_PATH)
+        self._credentials: Optional[Credentials] = None
+
+    def is_configured(self) -> bool:
+        """Check whether OAuth client secrets are present on this machine."""
+        return self.client_secrets_file.exists() or bool(os.getenv("GMAIL_CLIENT_CONFIG_JSON"))
+
+    def get_credentials(self, allow_browser_flow: bool = True) -> Optional[Credentials]:
+        """Load valid credentials from cache or initiate OAuth flow."""
+        creds: Optional[Credentials] = None
+
+        # 1. Check existing cached token
+        if self.token_path.exists():
+            try:
+                creds = Credentials.from_authorized_user_file(str(self.token_path), GMAIL_SCOPES)
+            except Exception:
+                creds = None
+
+        # 2. Refresh or trigger new flow
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+            except Exception:
+                creds = None
+
+        if not creds or not creds.valid:
+            if not self.is_configured():
+                return None
+
+            if not allow_browser_flow:
+                return None
+
+            # Run Desktop OAuth 2.0 Flow
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(self.client_secrets_file),
+                scopes=GMAIL_SCOPES,
+            )
+            creds = flow.run_local_server(port=0, prompt="consent", access_type="offline")
+
+            # Persist locally in git-ignored token file
+            if creds:
+                with open(self.token_path, "w", encoding="utf-8") as token_file:
+                    token_file.write(creds.to_json())
+
+        self._credentials = creds
+        return creds
+
+    def get_gmail_service(self) -> Optional[Resource]:
+        """Build and return an authorized Gmail API v1 service."""
+        creds = self._credentials or self.get_credentials()
+        if not creds or not creds.valid:
+            return None
+        return build("gmail", "v1", credentials=creds, cache_discovery=False)
+
+    def revoke_credentials(self) -> bool:
+        """Clear cached tokens for session termination."""
+        if self.token_path.exists():
+            try:
+                self.token_path.unlink()
+            except OSError:
+                pass
+        self._credentials = None
+        return True
